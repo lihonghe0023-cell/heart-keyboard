@@ -22,7 +22,15 @@ targets:
     platform: iOS
     sources:
       - HostApp
-      - HeartKeyboard          # shared: Lines.swift + ReplyEngine.swift
+      - path: HeartKeyboard    # shared: Lines.swift + ReplyEngine.swift
+        excludes:
+          - "Resources/**"
+      # Copied as a folder reference: Xcode must not process these files
+      # one by one — it would try to convert "t9.dict" as a property list
+      # (the .dict extension is registered as a plist type).
+      - path: HeartKeyboard/Resources
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.heartkeyboard
@@ -37,7 +45,12 @@ targets:
     type: app-extension
     platform: iOS
     sources:
-      - HeartKeyboard
+      - path: HeartKeyboard
+        excludes:
+          - "Resources/**"
+      - path: HeartKeyboard/Resources
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.heartkeyboard.keyboard
