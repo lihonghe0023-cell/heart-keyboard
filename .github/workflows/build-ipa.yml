@@ -1,3 +1,8 @@
+# Compiles an unsigned .ipa on a free GitHub macOS runner, which is what you
+# need if you are on Windows: Sideloadly signs it with your own Apple ID.
+#
+# Put this file at <repo>/.github/workflows/build-ipa.yml. It works whether the
+# project sits in an ios-heart-keyboard/ folder or at the repo root.
 name: Build unsigned IPA
 
 on:
@@ -5,6 +10,8 @@ on:
   push:
     paths:
       - "ios-heart-keyboard/**"
+      # So changing this file alone is enough to start a run.
+      - ".github/workflows/build-ipa.yml"
 
 jobs:
   build:
@@ -34,6 +41,7 @@ jobs:
       - name: Build for device without signing
         working-directory: ${{ steps.locate.outputs.dir }}
         run: |
+          set +e
           xcodebuild \
             -project HeartKeyboard.xcodeproj \
             -scheme HeartKeyboard \
@@ -43,7 +51,30 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build
+            build 2>&1 | tee build.log
+          status=${PIPESTATUS[0]}
+          if [ $status -ne 0 ]; then
+            # The action log needs a login to read; the job summary does not,
+            # so put the compiler diagnostics somewhere anyone can see them.
+            {
+              echo "### 编译诊断"
+              echo '```'
+              grep -E "error:|fatal error:|Failed frontend|Segmentation|while compiling" build.log | head -60
+              echo '```'
+              echo "### 编译参数（确认优化设置生效）"
+              echo '```'
+              grep -oE "\-swift-version [0-9]+|whole-module-optimization|SWIFT_OPTIMIZATION_LEVEL=-O[a-z]*" build.log | sort -u | head -10
+              echo '```'
+              echo "### 构建日志最后 40 行"
+              echo '```'
+              tail -n 40 build.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            grep -E "error:" build.log | head -8 | while IFS= read -r line; do
+              echo "::error::$line"
+            done
+          fi
+          exit $status
 
       - name: Package Payload into an .ipa
         working-directory: ${{ steps.locate.outputs.dir }}
@@ -51,6 +82,7 @@ jobs:
           set -euo pipefail
           APP="build/Build/Products/Release-iphoneos/HeartKeyboard.app"
           test -d "$APP"
+          # The keyboard lives inside the app bundle; Sideloadly re-signs both.
           test -d "$APP/PlugIns/HeartKeyboardExtension.appex"
           rm -rf Payload
           mkdir -p Payload
