@@ -1,0 +1,64 @@
+name: Build unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "ios-heart-keyboard/**"
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Locate the project
+        id: locate
+        run: |
+          if [ -f ios-heart-keyboard/project.yml ]; then
+            echo "dir=ios-heart-keyboard" >> "$GITHUB_OUTPUT"
+          elif [ -f project.yml ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::project.yml not found — is the ios-heart-keyboard folder in this repo?"
+            exit 1
+          fi
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ${{ steps.locate.outputs.dir }}
+        run: xcodegen generate
+
+      - name: Build for device without signing
+        working-directory: ${{ steps.locate.outputs.dir }}
+        run: |
+          xcodebuild \
+            -project HeartKeyboard.xcodeproj \
+            -scheme HeartKeyboard \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package Payload into an .ipa
+        working-directory: ${{ steps.locate.outputs.dir }}
+        run: |
+          set -euo pipefail
+          APP="build/Build/Products/Release-iphoneos/HeartKeyboard.app"
+          test -d "$APP"
+          test -d "$APP/PlugIns/HeartKeyboardExtension.appex"
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qr HeartKeyboard-unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HeartKeyboard-unsigned-ipa
+          path: ${{ steps.locate.outputs.dir }}/HeartKeyboard-unsigned.ipa
+          if-no-files-found: error
