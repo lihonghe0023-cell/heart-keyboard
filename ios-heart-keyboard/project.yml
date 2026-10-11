@@ -12,6 +12,12 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
+    # The Release build crashed swift-frontend under whole-module optimisation
+    # with no diagnostics. Compile file by file without optimisation: same app,
+    # no compiler crash, and a sideloaded build does not need -O.
+    SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+    SWIFT_COMPILATION_MODE: singlefile
+    SWIFT_STRICT_CONCURRENCY: minimal
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
     TARGETED_DEVICE_FAMILY: "1,2"
