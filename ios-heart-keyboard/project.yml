@@ -1,0 +1,61 @@
+# Optional: generate the Xcode project with XcodeGen instead of clicking
+# through the Xcode template UI.
+#
+#   brew install xcodegen
+#   cd ios-heart-keyboard && xcodegen generate && open HeartKeyboard.xcodeproj
+name: HeartKeyboard
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    TARGETED_DEVICE_FAMILY: "1,2"
+
+targets:
+  HeartKeyboard:
+    type: application
+    platform: iOS
+    sources:
+      - HostApp
+      - HeartKeyboard          # shared: Lines.swift + ReplyEngine.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.heartkeyboard
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: 心跳键盘
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    dependencies:
+      - target: HeartKeyboardExtension
+        embed: true
+
+  HeartKeyboardExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - HeartKeyboard
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.heartkeyboard.keyboard
+        INFOPLIST_FILE: HeartKeyboard/Info.plist
+        # Xcode 14+ generates an Info.plist from build settings for new targets;
+        # this target ships its own so the extension attributes stay explicit.
+        GENERATE_INFOPLIST_FILE: NO
+    dependencies:
+      - sdk: UIKit.framework
+
+# An explicit scheme so `xcodebuild -scheme HeartKeyboard` works in CI without
+# anyone opening Xcode first.
+schemes:
+  HeartKeyboard:
+    build:
+      targets:
+        HeartKeyboard: all
+    run:
+      config: Debug
+    archive:
+      config: Release
